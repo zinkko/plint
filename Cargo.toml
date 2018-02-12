@@ -1,0 +1,6 @@
+[package]
+name = "plint"
+version = "0.1.0"
+authors = ["Ilari Sinkkonen <sinkkonenilari@gmail.com>"]
+
+[dependencies]
