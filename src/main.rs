@@ -2,8 +2,8 @@ mod compiler;
 
 fn main() {
     println!("Hello, world!");
-    
-    compiler::compile();
 
-    compiler::run();
+    compiler::compile(String::from("var foo : string := \"test\";"));
+
+    // compiler::run();
 }
