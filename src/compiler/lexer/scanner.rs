@@ -1,5 +1,6 @@
 
 use super::token::Token;
+use super::token::Keyword;
 use std::mem::replace;
 
 enum State {
@@ -180,8 +181,17 @@ fn word_token(string: String) -> Token {
     match string.as_ref() {
         "true" => Token::Bool(true),
         "false" => Token::Bool(false),
-        "var" | "for" | "end" | "in" | "do" | "read" |
-        "print" | "int" | "string" | "bool" | "assert" => Token::Reserved(string),
+        "var" => Token::Reserved(Keyword::Var),
+        "for" => Token::Reserved(Keyword::For),
+        "end" => Token::Reserved(Keyword::End),
+        "in" => Token::Reserved(Keyword::In),
+        "do" => Token::Reserved(Keyword::Do),
+        "read" => Token::Reserved(Keyword::Read),
+        "print" => Token::Reserved(Keyword::Print),
+        "int" => Token::Reserved(Keyword::Int),
+        "string" => Token::Reserved(Keyword::String),
+        "bool" => Token::Reserved(Keyword::Bool),
+        "assert" => Token::Reserved(Keyword::Assert),
         _ => Token::Identifier(string),
     }
 }

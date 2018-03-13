@@ -1,6 +1,6 @@
 #[derive(Debug, Clone)]
 pub enum Token {
-    Reserved(String),
+    Reserved(Keyword),
     Identifier(String),
     Int(i32),
     String(String),
@@ -14,4 +14,19 @@ pub enum Token {
     Dot,
     EndStatement,
     InvalidToken(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum Keyword {
+    Var,
+    For,
+    End,
+    In,
+    Do,
+    Read,
+    Print,
+    Assert,
+    Int,
+    String,
+    Bool,
 }
