@@ -1,4 +1,4 @@
-mod token;
+pub mod token;
 mod scanner;
 
 use std::vec::Vec;
