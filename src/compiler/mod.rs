@@ -5,11 +5,16 @@ mod code_generator;
 
 pub fn compile(source: String) {
     let tokens = lexer::scan(&source);
+    let ast = parser::parse(tokens);
 
-    println!("\nsource: {}\n", source);
+    show(ast);
+}
 
-    for t in tokens {
-        println!("token: {:?}", t);
+fn show(ast: parser::ast::Ast) {
+    println!("Statements:");
+
+    for s in ast.statements {
+        println!("{:?}", s);
     }
 }
 
