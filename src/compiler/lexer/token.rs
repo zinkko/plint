@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Reserved(Keyword),
     Identifier(String),
@@ -16,7 +16,7 @@ pub enum Token {
     InvalidToken(String),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     Var,
     For,
