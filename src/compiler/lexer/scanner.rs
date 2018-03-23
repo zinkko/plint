@@ -10,7 +10,6 @@ enum State {
     ReadingString,
     ReadingInt,
     ReadingWord,
-    Error,
 }
 
 pub struct Scanner {
@@ -55,9 +54,6 @@ impl Scanner {
                 if c == '\n' {
                     self.state = State::Empty
                 }
-            },
-            State::Error => {
-
             },
             State::Empty => {
                 match c {
@@ -134,13 +130,6 @@ fn is_alphanumeric(c: char) -> bool {
         _ if is_integral(c) => true,
         'a'...'z' | 'A'...'Z' => true,
         '_' => true,
-        _ => false,
-    }
-}
-
-fn is_whitespace(c: char) -> bool {
-    match c {
-        ' ' | '\n' | '\t' => true,
         _ => false,
     }
 }

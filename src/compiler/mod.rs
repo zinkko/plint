@@ -5,9 +5,10 @@ mod code_generator;
 
 pub fn compile(source: String) {
     let tokens = lexer::scan(&source);
-    let ast = parser::parse(tokens);
-
-    show(ast);
+    match parser::parse(tokens) {
+        Ok(ast) => show(ast),
+        Err(msg) => println!("Parsing failed: {}", msg),
+    };
 }
 
 fn show(ast: parser::ast::Ast) {

@@ -2,7 +2,7 @@ pub struct Ast {
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     Declaration { identifier: String, mpl_type: MplType, value: Option<Expression> },
     Assignment { identifier: String, expression: Expression },
@@ -13,14 +13,14 @@ pub enum Statement {
     Empty, // TODO remove!
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Simple(Operand),
     Binary { left: Operand, operator: char, right: Operand },
     Unary { operator: char, operand: Operand },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Operand {
     Int(i32),
     String(String),
@@ -28,7 +28,7 @@ pub enum Operand {
     Expr(Box<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum MplType {
     Int,
     String,

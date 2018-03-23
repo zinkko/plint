@@ -19,21 +19,20 @@ impl Parser<IntoIter<Token>> {
 
 impl<I: Iterator<Item = Token>> Parser<I> {
 
-    fn assume_next(&mut self, expected: Token) {
-        let next = self.next();
-        if let Some(token) = next {
-            if token != expected {
-                panic!("Syntax error: Expected {:?}, got {:?}", expected, token);
-            }
-        } else {
-            panic!("Reached end while parsing! Expected {:?}", expected);
+    fn assume_next(&mut self, expected: Token) -> Result<(), String> {
+        match self.next() {
+            Some(ref token) if *token == expected => Ok(()),
+            Some(wrong) => Err(format!("Syntax error: Expected {:?}, got {:?}", expected, wrong)),
+            _ => Err(format!("Reached end while parsing! Expected {:?}", expected)),
         }
     }
 
-    fn assume_end(&mut self) {
-        self.assume_next(Token::EndStatement);
+    fn assume_end(&mut self) -> Result<(), String> {
+        self.assume_next(Token::EndStatement)
     }
 
+    /// Returns next token. Automatically takes the token from the internal buffer
+    /// or the iterator, whichever is appropriate.
     fn next(&mut self) -> Option<Token> {
         if self.buffer == None {
             self.iterator.next()
@@ -44,168 +43,193 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
+    fn expect_next(&mut self) -> Result<Token, String> {
+        match self.next() {
+            Some(token) => Ok(token),
+            None => Err("Reached end while parsing".to_string()),
+        }
+    }
+
     // DIFFERENT STATEMENTS
 
-    fn parse_read(&mut self) -> Statement {
+    fn parse_read(&mut self) -> Result<Statement, String> {
         // "read" <identifier> read identifier and return
-        let statement = match self.next() {
-            Some(Token::Identifier(name)) => Statement::Read(name),
-            Some(token) => panic!("Unexpected token {:?}", token),
-            None => panic!("Reached end while parsing"),
+        let stmt_res = match self.next() {
+            Some(Token::Identifier(name)) => Ok(Statement::Read(name)),
+            Some(token) => Err(format!("Unexpected token {:?}", token)),
+            None => Err(format!("Reached end while parsing")),
         };
-
-        self.assume_end();
-        statement
+        stmt_res.and_then(|statement| self.assume_end().and(Ok(statement)))
     }
 
-    fn parse_assert(&mut self) -> Statement {
+    fn parse_assert(&mut self) -> Result<Statement, String> {
         // "assert" ( <expr> )
-        self.assume_next(Token::OpenParen);
-        let expression = self.parse_expression();
-        self.assume_next(Token::CloseParen);
-
-        self.assume_end();
-        Statement::Assert(expression)
+        self.assume_next(Token::OpenParen)
+            .and(self.parse_expression())
+            .and_then(|expr| self.assume_next(Token::CloseParen)
+                .and(self.assume_end())
+                .and(Ok(Statement::Assert(expr)))
+            )
     }
 
-    fn parse_assignment(&mut self, identifier: String) -> Statement {
-        self.assume_next(Token::Assignment);
-        let expression = self.parse_expression();
-
-        self.assume_end();
-        Statement::Assignment { identifier, expression }
+    fn parse_assignment(&mut self, identifier: String) -> Result<Statement, String> {
+        self.assume_next(Token::Assignment)
+            .and(self.parse_expression())
+            .and_then(|expression| self.assume_end()
+                .and(Ok(Statement::Assignment { identifier, expression }))
+            )
     }
 
-    fn parse_for(&mut self) -> Statement {
+    fn parse_for(&mut self) -> Result<Statement, String> {
         // for <iden> in <expr> .. <expr> do <stmts> end for
-        let identifier = match self.next() {
-            Some(Token::Identifier(value)) => value,
-            _ => panic!("Syntax error"),
+        let res_identifier = match self.next() {
+            Some(Token::Identifier(value)) => Ok(value),
+            Some(wrong) => Err(format!("Bad token {:?}", wrong)),
+            _ => Err("Reached end while parsing".to_string()),
+        }.and_then(|identifier|
+            self.assume_next(Token::Reserved(Keyword::In)).and(Ok(identifier))
+        );
+        let identifier = match res_identifier {
+            Ok(ident) => ident,
+            Err(e) => return Err(e),
         };
-        self.assume_next(Token::Reserved(Keyword::In));
-        let begin = self.parse_expression();
-        self.assume_next(Token::Range);
-        let end = self.parse_expression();
-        self.assume_next(Token::Reserved(Keyword::Do));
 
-        let mut statements = Vec::new();
+        let begin = match self.parse_expression()
+            .and_then(|expr| self.assume_next(Token::Range).and(Ok(expr))) {
+                Ok(expr) => expr,
+                Err(e) => return Err(e),
+            };
+        let end = match self.parse_expression()
+            .and_then(|expr| self.assume_next(Token::Reserved(Keyword::Do)).and(Ok(expr))) {
+                Ok(expr) => expr,
+                Err(e) => return Err(e),
+            };
 
+
+        let mut stmt_results = Vec::new();
         loop {
             match self.next() {
                 Some(Token::Reserved(Keyword::End)) => break,
-                Some(token) => statements.push(self.parse_statement(token)),
-                None => panic!("Reached end while parsing"),
+                Some(token) => stmt_results.push(self.parse_statement(token)),
+                None => return Err("Reached end while parsing".to_string()),
             }
         }
 
-        self.assume_next(Token::Reserved(Keyword::For));
-        Statement::For { identifier, begin, end, statements }
+        let statements : Vec<Statement> = match stmt_results.iter().cloned().collect() {
+            Ok(statements) => statements,
+            Err(e) => return Err(e),
+        };
+
+        match self.assume_next(Token::Reserved(Keyword::For)).and(self.assume_end()) {
+            Err(e) => return Err(e),
+            _ => (),
+        }
+        Ok(Statement::For { identifier, begin, end, statements })
     }
 
-    fn parse_declaration(&mut self) -> Statement {
+    fn parse_declaration(&mut self) -> Result<Statement, String> {
         // var <ident> : <type> [ := <expr> ]
-        let identifier = match self.next() {
-            Some(Token::Identifier(value)) => value,
-            Some(token) => panic!("Wrong token {:?}", token),
-            None => panic!("Reached end while parsing"),
-        };
-        self.assume_next(Token::TypeDecl);
-        let mpl_type = match self.next() {
+        let res_identifier = match self.next() {
+            Some(Token::Identifier(value)) => Ok(value),
+            Some(token) => Err(format!("Wrong token {:?}", token)),
+            None => Err(format!("Reached end while parsing")),
+        }.and_then(|identifier| self.assume_next(Token::TypeDecl).and(Ok(identifier)));
+        let res_mpl_type = match self.next() {
             Some(Token::Reserved(word)) => match word {
-                Keyword::Int => MplType::Int,
-                Keyword::String => MplType::String,
-                Keyword::Bool => MplType::Bool,
-                _ => panic!("Not a type {:?}", word),
+                Keyword::Int => Ok(MplType::Int),
+                Keyword::String => Ok(MplType::String),
+                Keyword::Bool => Ok(MplType::Bool),
+                _ => Err(format!("Not a type {:?}", word)),
             },
-            Some(token) => panic!("bad token {:?}", token),
-            None => panic!("Reached end while parsing"),
+            Some(token) => Err(format!("bad token {:?}", token)),
+            None => Err("Reached end while parsing".to_string()),
         };
 
-        let value = match self.next() {
-            Some(Token::EndStatement) => None,
-            Some(Token::Assignment) => Some(self.parse_expression()),
-            Some(token) => panic!("Bad token {:?}", token),
-            None => panic!("Reached end while parsing"),
+        let res_value = match self.next() {
+            Some(Token::EndStatement) => Ok(None),
+            Some(Token::Assignment) => self.parse_expression()
+                .and_then(|expr| self.assume_end().and(Ok(Some(expr)))),
+            Some(token) => Err(format!("Bad token {:?}", token)),
+            None => Err(format!("Reached end while parsing")),
         };
 
-        match value  {
-            None => (),
-            _ => self.assume_end(),
-        };
-
-        Statement::Declaration { identifier, mpl_type, value }
+        res_identifier.and_then(|identifier|
+            res_mpl_type.and_then(|mpl_type|
+                res_value.and_then(|value| Ok(Statement::Declaration { identifier, mpl_type, value })
+                )
+            )
+        )
     }
 
-    fn parse_statement(&mut self, token: Token) -> Statement {
+    fn parse_statement(&mut self, token: Token) -> Result<Statement, String> {
         match token {
             Token::Reserved(Keyword::Var) => self.parse_declaration(), // Declaration
             Token::Identifier(ident) => self.parse_assignment(ident), // Assignment
             Token::Reserved(Keyword::For) => self.parse_for(),
             Token::Reserved(Keyword::Read) => self.parse_read(),
-            Token::Reserved(Keyword::Print) => Statement::Print(self.parse_expression()),
+            Token::Reserved(Keyword::Print) => self.parse_expression()
+                .and_then(|expr| self.assume_end().map(|_| expr))
+                .map(Statement::Print),
             Token::Reserved(Keyword::Assert) => self.parse_assert(),
-            Token::EndStatement => Statement::Empty,
-            _ => panic!("Bad token! {:?}", token),
+            Token::EndStatement => Ok(Statement::Empty),
+            _ => Err(format!("Bad token! {:?}", token)),
         }
     }
 
     // OTHERS
 
-    fn parse_expression(&mut self) -> Expression {
+    fn parse_expression(&mut self) -> Result<Expression, String> {
         match self.next() {
-            Some(Token::Operator(operator)) => {
-                let operand = match self.next() {
-                    Some(token) => self.parse_operand(token),
-                    None => panic!("Reached end while parsing"),
-                };
-                Expression::Unary { operator, operand }
-            },
+            Some(Token::Operator(operator)) => self.expect_next()
+                .and_then(|token| self.parse_operand(token))
+                .map(|operand| Expression::Unary { operator, operand }),
             Some(token) => {
-                let left = self.parse_operand(token);
-                let operator = match self.next() {
-                    Some(Token::Operator(o)) => o,
-                    Some(token) => {
-                        self.buffer = Some(token);
-                        return Expression::Simple(left);
+                self.parse_operand(token).and_then(|left| {
+                    match self.next() {
+                        Some(Token::Operator(operator)) => {
+                            self.expect_next()
+                                .and_then(|token| self.parse_operand(token))
+                                .map(|right| Expression::Binary { left, operator, right })
+                        },
+                        Some(token) => {
+                            self.buffer = Some(token);
+                            Ok(Expression::Simple(left))
+                        },
+                        None => Err("Reached end while parsing".to_string()),
                     }
-                    None => panic!("Reached end while parsing"),
-                };
-                let right = match self.next() {
-                     Some(token) => self.parse_operand(token),
-                     None => panic!("Reached end while parsing"),
-                };
-
-                Expression::Binary { left, operator, right }
-            }
-            None => panic!("Reached end while parsing"),
+                })
+            },
+            None => Err("Reached end while parsing".to_string()),
         }
     }
 
-    fn parse_operand(&mut self, token: Token) -> Operand {
+    fn parse_operand(&mut self, token: Token) -> Result<Operand, String> {
         // TODO refactor!
         match token {
-            Token::Int(i) => Operand::Int(i),
-            Token::String(s) => Operand::String(s),
-            Token::Identifier(id) => Operand::Identifier(id),
-            Token::OpenParen => {
-                let expression = Box::new(self.parse_expression());
-                self.assume_next(Token::CloseParen);
-                Operand::Expr(expression)
-            },
-            _ => panic!("Bad token {:?}", token),
+            Token::Int(i) => Ok(Operand::Int(i)),
+            Token::String(s) => Ok(Operand::String(s)),
+            Token::Identifier(id) => Ok(Operand::Identifier(id)),
+            Token::OpenParen => self.parse_expression()
+                .and_then(|expr| self.assume_next(Token::CloseParen)
+                    .and(Ok(Operand::Expr(Box::new(expr))))
+                ),
+            _ => Err(format!("Bad token {:?}", token)),
         }
     }
 
-    pub fn into_ast(mut self) -> Ast {
+    pub fn into_ast(mut self) -> Result<Ast, String> {
         let mut statements = Vec::new();
 
         loop {
             match self.next() {
-                Some(token) => statements.push(self.parse_statement(token)),
+                Some(token) => match self.parse_statement(token) {
+                    Ok(stmt) => statements.push(stmt),
+                    Err(e) => return Err(e),
+                },
                 None => break,
             };
         };
 
-        Ast { statements }
+        Ok(Ast { statements })
     }
 }
