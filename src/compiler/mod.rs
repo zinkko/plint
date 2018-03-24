@@ -4,11 +4,22 @@ mod interpreter;
 mod code_generator;
 
 pub fn compile(source: String) {
-    let tokens = lexer::scan(&source);
-    match parser::parse(tokens) {
-        Ok(ast) => show(ast),
-        Err(msg) => println!("Parsing failed: {}", msg),
+    let tokens = match lexer::scan(&source) {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
     };
+
+    for t in tokens {
+        println!("{:?}", t);
+    }
+
+    // match parser::parse(tokens) {
+    //     Ok(ast) => show(ast),
+    //     Err(msg) => println!("Parsing failed: {}", msg),
+    // };
 }
 
 fn show(ast: parser::ast::Ast) {

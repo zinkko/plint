@@ -101,9 +101,15 @@ impl Scanner {
         }
     }
 
-    pub fn into_tokens(self) -> Vec<Token> {
-        // TODO what if we're still reading?
-        self.tokens
+    pub fn into_tokens(self) -> Result<Vec<Token>, String> {
+        let end = "Reached end while scanning";
+        match self.state {
+            State::Empty | State::Comment => Ok(self.tokens),
+            State::Unclear => Err(format!("{}. {} expected continuation", end, self.buffer)),
+            State::ReadingInt => Err(format!("{} integer.", end)),
+            State::ReadingString => Err(format!("{} string.", end)),
+            State::ReadingWord =>  Err(format!("{} word.", end)),
+        }
     }
 
     fn add_token(&mut self) {
@@ -112,7 +118,7 @@ impl Scanner {
             State::ReadingString => Token::String(replace(&mut self.buffer, String::new())),
             // todo check keywords
             State::ReadingWord => word_token(replace(&mut self.buffer, String::new())),
-            _ => panic!("add_token called on non-reading state"),
+            _ => panic!("add_token called on non-reading state (scanner)"),
         };
         self.tokens.push(new_token);
     }
