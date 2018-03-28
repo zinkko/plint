@@ -6,29 +6,28 @@ mod code_generator;
 pub fn compile(source: String) {
     let tokens = match lexer::scan(&source) {
         Ok(tokens) => tokens,
-        Err(e) => {
-            println!("{}", e);
-            return;
-        }
+        Err(e) => { println!("Scanning failed: {}", e); return; },
     };
 
-    for t in tokens {
-        println!("{:?}", t);
-    }
+    let ast = match parser::parse(tokens) {
+        Ok(ast) => ast,
+        Err(msg) => { println!("Parsing failed: {}", msg); return; },
+    };
 
-    // match parser::parse(tokens) {
-    //     Ok(ast) => show(ast),
-    //     Err(msg) => println!("Parsing failed: {}", msg),
-    // };
-}
-
-fn show(ast: parser::ast::Ast) {
-    println!("Statements:");
-
-    for s in ast.statements {
-        println!("{:?}", s);
+    let result = interpreter::evaluate(ast);
+    match result {
+        Ok(_) => (),
+        Err(e) => println!("Runtime error: {}", e),
     }
 }
+
+// fn show(ast: parser::ast::Ast) {
+//     println!("Statements:");
+//
+//     for s in ast.statements {
+//         println!("{:?}", s);
+//     }
+// }
 
 // pub fn run() {
 //     println!("Hello, I am the Interpreter!");
