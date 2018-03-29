@@ -1,8 +1,10 @@
 
 use super::parser::ast::*;
+
 use std::collections::HashMap;
 use std::io;
 use std::ops::Range;
+use std::error::Error;
 
 mod functions;
 
@@ -82,7 +84,7 @@ impl Interpreter {
                 => self.evaluate_assign(identifier, expression),
             Statement::For { identifier, begin, end, statements } => {
                 let begin = self.expect_int_expr(begin)?;
-                let end = self.expect_int_expr(end)?;
+                let end = self.expect_int_expr(end)? + 1;
                 self.evaluate_for(identifier, begin .. end, statements)
             },
             Statement::Read(identifier) => self.evaluate_read(identifier),
@@ -106,7 +108,6 @@ impl Interpreter {
                 None => return Err("For loop identifier not initialized".to_string()),
             }
             for stmt in statements.iter() {
-                // TODO don't clone
                 self.evaluate_statement(stmt.clone())?;
             }
         }
@@ -134,11 +135,16 @@ impl Interpreter {
     }
 
     fn evaluate_read(&mut self, identifier: String) -> Result<(), String> {
-        let mut input = String::new();
-        if let Err(e) = io::stdin().read_line(&mut input) {
+        let mut line = String::new();
+        if let Err(e) = io::stdin().read_line(&mut line) {
             return Err(format!("IO error: {}", e));
         };
-        let value = MplValue::String(input);
+        let input = line.trim().to_string();
+        let value = match self.get_type(&identifier)? {
+            MplType::Int => self.parse_int(input)?,
+            MplType::String => MplValue::String(input),
+            MplType::Bool => self.parse_bool(input)?,
+        };
 
         match self.names.get_mut(&identifier) {
             Some(stack) => { stack.pop(); stack.push(value); Ok(()) },
@@ -149,9 +155,9 @@ impl Interpreter {
     fn evaluate_print(&self, print: Expression) -> Result<(), String> {
         self.evaluate_expression(print).and_then(|value| {
             match value {
-                MplValue::String(s) => { print!("{}", s); Ok(())},
-                MplValue::Int(i) => { print!("{}", i); Ok(()) },
-                MplValue::Bool(b) => { print!("{}", b); Ok(()) },
+                MplValue::String(s) => { println!("{}", s); Ok(())},
+                MplValue::Int(i) => { println!("{}", i); Ok(()) },
+                MplValue::Bool(b) => { println!("{}", b); Ok(()) },
             }
         })
     }
@@ -194,14 +200,36 @@ impl Interpreter {
             Operand::String(s) => Ok(MplValue::String(s)),
             Operand::Identifier(id) => {
                 match self.names.get(&id) {
-                    Some(stack) => match stack.last() {
-                        Some(value) => Ok(value.clone()),
-                        None => Err(format!("Identifier {} used before assignment", id))
-                    },
+                    Some(stack) => Ok(stack.last().unwrap().clone()), // last() == None should be impossible
                     None => Err(format!("Identifier {} used before assignment", id))
                 }
             },
             Operand::Expr(expr) => self.evaluate_expression(*expr),
+        }
+    }
+
+    fn parse_int(&self, input: String) -> Result<MplValue, String> {
+        match input.parse() {
+            Ok(i) => Ok(MplValue::Int(i)),
+            Err(e) => Err(e.description().to_string()),
+        }
+    }
+
+    fn parse_bool(&self, input: String) -> Result<MplValue, String> {
+        match input.parse() {
+            Ok(b) => Ok(MplValue::Bool(b)),
+            Err(e) => Err(e.description().to_string()),
+        }
+    }
+
+    fn get_type(&self, identifier: &String) -> Result<MplType, String> {
+        match self.names.get(identifier) {
+            Some(stack) => match stack.last().unwrap() { // last() == None should be impossible
+                &MplValue::Int(_) => Ok(MplType::Int),
+                &MplValue::String(_) => Ok(MplType::String),
+                &MplValue::Bool(_) => Ok(MplType::Bool),
+            },
+            None => Err(format!("Identifier {} has not been declared", identifier)),
         }
     }
 }
