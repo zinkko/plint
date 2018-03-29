@@ -3,6 +3,7 @@ use super::parser::ast::*;
 
 use std::collections::HashMap;
 use std::io;
+use std::io::Write;
 use std::ops::Range;
 use std::error::Error;
 
@@ -111,7 +112,9 @@ impl Interpreter {
 
     fn evaluate_print(&self, print: Expression) -> Result<(), String> {
         self.evaluate_expression(print)
-            .and_then(|value| { println!("{}", value); Ok(()) })
+            .map(|value| print!("{}", value))?;
+        io::stdout().flush().map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     fn evaluate_assert(&self, assertion: Expression) -> Result<(), String> {

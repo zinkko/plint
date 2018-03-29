@@ -7,6 +7,7 @@ enum State {
     Empty,
     Comment,
     Unclear,
+    ReadingEscape,
     ReadingString,
     ReadingInt,
     ReadingWord,
@@ -79,6 +80,15 @@ impl Scanner {
                     _ => (),
                 }
             },
+            State::ReadingEscape => {
+                    match c {
+                        '"' | '\\' => self.buffer.push(c),
+                        'n' => self.buffer.push('\n'),
+                        _ => { self.buffer.push('\\'); self.buffer.push(c) },
+                    }
+                    self.state = State::ReadingString;
+            },
+            State::ReadingString if c == '\\' => self.state = State::ReadingEscape,
             _ => {
                 if read_end(&self.state, c) {
                     self.add_token();
@@ -107,7 +117,7 @@ impl Scanner {
             State::Empty | State::Comment => Ok(self.tokens),
             State::Unclear => Err(format!("{}. {} expected continuation", end, self.buffer)),
             State::ReadingInt => Err(format!("{} integer.", end)),
-            State::ReadingString => Err(format!("{} string.", end)),
+            State::ReadingString | State::ReadingEscape => Err(format!("{} string.", end)),
             State::ReadingWord =>  Err(format!("{} word.", end)),
         }
     }
@@ -116,9 +126,8 @@ impl Scanner {
         let new_token = match self.state {
             State::ReadingInt => try_int(replace(&mut self.buffer, String::new())),
             State::ReadingString => Token::String(replace(&mut self.buffer, String::new())),
-            // todo check keywords
             State::ReadingWord => word_token(replace(&mut self.buffer, String::new())),
-            _ => panic!("add_token called on non-reading state (scanner)"),
+            _ => unreachable!("add_token called on non-reading state (scanner)"),
         };
         self.tokens.push(new_token);
     }

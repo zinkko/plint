@@ -14,15 +14,13 @@ fn main() {
 
     let filename = &args[1];
 
-    println!("=== 'compile' file {} ===", filename);
-
     let mut f = File::open(filename).expect("file not found");
 
     let mut source = String::new();
     f.read_to_string(&mut source)
         .expect("unable to read file");
 
-    compiler::compile(source);
+    compiler::run(source);
 
     // compiler::run();
 }
