@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::io;
 use std::ops::Range;
 use std::error::Error;
+use std::fmt;
 
 mod functions;
 
@@ -13,6 +14,16 @@ pub enum MplValue {
     Int(i32),
     String(String),
     Bool(bool),
+}
+
+impl fmt::Display for MplValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &MplValue::Int(i) => write!(f, "{}", i),
+            &MplValue::String(ref s) => write!(f, "{}", s),
+            &MplValue::Bool(b) => write!(f, "{}", b),
+        }
+    }
 }
 
 impl MplValue {
@@ -46,6 +57,15 @@ impl MplValue {
             MplValue::Bool(b) => Ok(b),
         }
     }
+
+    pub fn mpl_type(&self) -> MplType {
+        match self {
+            &MplValue::Int(_) => MplType::Int,
+            &MplValue::String(_) => MplType::String,
+            &MplValue::Bool(_) => MplType::Bool,
+        }
+    }
+
     pub fn default(mpl_type: &MplType) -> MplValue {
         match mpl_type {
             &MplType::Int => MplValue::Int(0),
@@ -120,7 +140,7 @@ impl Interpreter {
             None => MplValue::default(mpl_type), // initialize to default
         };
         if !init.is(mpl_type) {
-            return Err(format!("Type {:?} does not match value {:?}", mpl_type, init));
+            return Err(format!("Type {} does not match value {}", mpl_type, init));
         }
         self.names.insert(identifier, vec![init]);
         Ok(())
@@ -153,13 +173,8 @@ impl Interpreter {
     }
 
     fn evaluate_print(&self, print: Expression) -> Result<(), String> {
-        self.evaluate_expression(print).and_then(|value| {
-            match value {
-                MplValue::String(s) => { println!("{}", s); Ok(())},
-                MplValue::Int(i) => { println!("{}", i); Ok(()) },
-                MplValue::Bool(b) => { println!("{}", b); Ok(()) },
-            }
-        })
+        self.evaluate_expression(print)
+            .and_then(|value| { println!("{}", value); Ok(()) })
     }
 
     fn evaluate_assert(&self, assertion: Expression) -> Result<(), String> {
@@ -167,7 +182,7 @@ impl Interpreter {
             match value {
                 MplValue::Bool(true) => Ok(()),
                 MplValue::Bool(false) => Err("Assertion failed".to_string()),
-                _ => Err("Can not assert non-bool".to_string()),
+                value => Err(format!("Assert expected boolean argument, got {}", value.mpl_type())),
             }
         })
     }

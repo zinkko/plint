@@ -1,3 +1,5 @@
+use std::fmt;
+
 pub struct Ast {
     pub statements: Vec<Statement>,
 }
@@ -33,4 +35,14 @@ pub enum MplType {
     Int,
     String,
     Bool,
+}
+
+impl fmt::Display for MplType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &MplType::Int => write!(f, "Integer"),
+            &MplType::String => write!(f, "String"),
+            &MplType::Bool => write!(f, "Boolean"),
+        }
+    }
 }
