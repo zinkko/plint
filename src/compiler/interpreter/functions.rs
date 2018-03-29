@@ -1,22 +1,25 @@
 
 use super::MplValue;
 
+/// An MplFunction represents the function defined by the operator
 pub struct MplFunction {
     pub sign: char,
 }
 
 impl MplFunction {
+    /// Call a unary function. Perform type checking. If the operator is not a unary operator, return an error.
     pub fn call_unary(&self, operand: MplValue) -> Result<MplValue, String> {
-        if self.sign != '!' {
-            Err(format!("Operator {} is not a unary operator", self.sign))
-        } else {
-            Ok(MplValue::Bool(!operand.to_bool()?))
+        match self.sign {
+            '!' => Ok(MplValue::Bool(!operand.to_bool()?)),
+            // '-' => Ok(MplValue::Int(-operand.to_int()?)),
+            _ => Err(format!("Operator {} is not a unary operator", self.sign)),
         }
     }
+
+    /// Call a binary function. Performs type checking. If the operator is not a binary operator, return an error.
     pub fn call(&self, left: MplValue, right: MplValue) -> Result<MplValue, String>{
         match self.sign {
             '+' => plus(left, right),
-            // TODO add macros
             '-' => Ok(MplValue::Int(left.to_int()? - right.to_int()?)),
             '/' => Ok(MplValue::Int(left.to_int()? / right.to_int()?)),
             '*' => Ok(MplValue::Int(left.to_int()? * right.to_int()?)),
@@ -30,6 +33,7 @@ impl MplFunction {
 
 }
 
+/// Helper functions for comparisons. Internal use only.
 fn compare(left: MplValue, right: MplValue) -> Result<MplValue, String> {
     match left {
         MplValue::Int(i) => Ok(MplValue::Bool(i < right.to_int()?)),
@@ -38,6 +42,7 @@ fn compare(left: MplValue, right: MplValue) -> Result<MplValue, String> {
     }
 }
 
+/// Helper function for addition. Handles addition of both integers and strings.
 fn plus(left: MplValue, right: MplValue) -> Result<MplValue, String> {
     match left {
         MplValue::Int(i) => Ok(MplValue::Int(i + right.to_int()?)),

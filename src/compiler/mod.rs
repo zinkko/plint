@@ -2,6 +2,9 @@ mod lexer;
 mod parser;
 mod interpreter;
 
+
+/// Run and Mpl program defined by the source.
+/// Upon an error terminates execution and prints the error to standard output
 pub fn run(source: String) {
     let tokens = match lexer::scan(&source) {
         Ok(tokens) => tokens,

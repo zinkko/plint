@@ -4,6 +4,7 @@ use std::io::prelude::*;
 
 mod compiler;
 
+/// CLI of the interpreter. Usage: plint filename
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -21,6 +22,4 @@ fn main() {
         .expect("unable to read file");
 
     compiler::run(source);
-
-    // compiler::run();
 }

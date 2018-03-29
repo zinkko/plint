@@ -32,7 +32,8 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     /// Returns next token. Automatically takes the token from the internal buffer
-    /// or the iterator, whichever is appropriate.
+    /// or the iterator, whichever is appropriate. Use this instead of self.expect_next() when
+    /// not requiring another token.
     fn next(&mut self) -> Option<Token> {
         if self.buffer == None {
             self.iterator.next()
@@ -43,6 +44,8 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
+    /// Returns next token, or an error if there is no next token. Use this instead of self.next()
+    /// when you are expecting another token.
     fn expect_next(&mut self) -> Result<Token, String> {
         match self.next() {
             Some(token) => Ok(token),
@@ -63,7 +66,6 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_assert(&mut self) -> Result<Statement, String> {
-        // "assert" ( <expr> )
         self.assume_next(Token::OpenParen)
             .and(self.parse_expression())
             .and_then(|expr| self.assume_next(Token::CloseParen)
@@ -161,7 +163,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
-    // OTHERS
+    // Expression and Operand
 
     fn parse_expression(&mut self) -> Result<Expression, String> {
         match self.next() {
@@ -202,6 +204,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
+    /// Extract the AST from the parser. If parsing is not complete, return an error.
     pub fn into_ast(mut self) -> Result<Ast, String> {
         let mut statements = Vec::new();
 

@@ -3,6 +3,7 @@ use super::token::Token;
 use super::token::Keyword;
 use std::mem::replace;
 
+/// The internal state of the scanner.
 enum State {
     Empty,
     Comment,
@@ -13,6 +14,7 @@ enum State {
     ReadingWord,
 }
 
+/// The scanner is a state machine, with a buffer for reading multicharacter tokens.
 pub struct Scanner {
     tokens: Vec<Token>,
     buffer: String,
@@ -20,10 +22,12 @@ pub struct Scanner {
 }
 
 impl Scanner {
+    /// Initialize a scanner.
     pub fn new() -> Scanner {
         Scanner { tokens: Vec::new(), buffer: String::new(), state: State::Empty }
     }
 
+    /// Consume the next character from input. The Scanner expects characters to be fed externally.
     pub fn consume(&mut self, c: char) {
         match self.state {
             State::Unclear => {
@@ -111,6 +115,7 @@ impl Scanner {
         }
     }
 
+    /// Extract tokens from the scanner. If the scanner is still reading, return error.
     pub fn into_tokens(self) -> Result<Vec<Token>, String> {
         let end = "Reached end while scanning";
         match self.state {
@@ -122,9 +127,13 @@ impl Scanner {
         }
     }
 
+    /// Helper for creating long tokens, i.e. integer, string, or word.
     fn add_token(&mut self) {
         let new_token = match self.state {
-            State::ReadingInt => try_int(replace(&mut self.buffer, String::new())),
+            State::ReadingInt => {
+                let literal = replace(&mut self.buffer, String::new());
+                Token::Int(literal.parse().unwrap()) // parse failure should be impossible, so unwrap
+            },
             State::ReadingString => Token::String(replace(&mut self.buffer, String::new())),
             State::ReadingWord => word_token(replace(&mut self.buffer, String::new())),
             _ => unreachable!("add_token called on non-reading state (scanner)"),
@@ -133,6 +142,7 @@ impl Scanner {
     }
 }
 
+/// Helper. Accepts characters 0 ... 9 as integral.
 fn is_integral(c: char) -> bool {
     match c {
         '0' ... '9' => true,
@@ -140,6 +150,7 @@ fn is_integral(c: char) -> bool {
     }
 }
 
+/// Helper. Accepts characters 0 ... 9 as numeric, and a...z, A...Z as alphabetic.
 fn is_alphanumeric(c: char) -> bool {
     match c {
         _ if is_integral(c) => true,
@@ -149,7 +160,9 @@ fn is_alphanumeric(c: char) -> bool {
     }
 }
 
-// chars that could lead to multiple tokens
+/// Helper. Characters that could be part of a single character token, or a different longer token
+/// are considered unclear. They are ":", "/", ".". For example : could be either a type-declaration
+/// token, or the beginning of an assignment token (:=).
 fn is_unclear(c: char) -> bool {
     match c {
         // * not included, it is a special case for comment
@@ -158,6 +171,7 @@ fn is_unclear(c: char) -> bool {
     }
 }
 
+/// Helper. Return true if the character is an operator in MiniPl.
 fn is_operator(c: char) -> bool {
     match c {
         '+' | '-' | '*' | '/' | '&' | '!' | '=' | '<' => true,
@@ -165,6 +179,8 @@ fn is_operator(c: char) -> bool {
     }
 }
 
+/// Check if reading a longer token should end. For example if the scanner has been reading a string
+/// and encounters a (unescaped) quote (") return true.
 fn read_end(state: &State, c: char) -> bool {
     match *state {
         State::ReadingInt => !is_integral(c),
@@ -174,15 +190,9 @@ fn read_end(state: &State, c: char) -> bool {
     }
 }
 
-fn try_int(string: String) -> Token {
-    match string.parse::<i32>() {
-        Ok(i) => Token::Int(i),
-        Err(_) => Token::InvalidToken(string),
-    }
-}
-
-fn word_token(string: String) -> Token {
-    match string.as_ref() {
+/// Filter a word into either an identifier, reserved keyword, or a boolean.
+fn word_token(word: String) -> Token {
+    match word.as_ref() {
         "true" => Token::Bool(true),
         "false" => Token::Bool(false),
         "var" => Token::Reserved(Keyword::Var),
@@ -196,6 +206,6 @@ fn word_token(string: String) -> Token {
         "string" => Token::Reserved(Keyword::String),
         "bool" => Token::Reserved(Keyword::Bool),
         "assert" => Token::Reserved(Keyword::Assert),
-        _ => Token::Identifier(string),
+        _ => Token::Identifier(word),
     }
 }

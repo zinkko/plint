@@ -1,9 +1,13 @@
 use std::fmt;
 
+/// Abstract Syntax Tree for Mini PL. There is no Node struct/enum, but the nodes are different
+/// enums depending on the type of node. For example the nodes can be Operand enums or Expression
+/// enums.
 pub struct Ast {
     pub statements: Vec<Statement>,
 }
 
+/// The statement enum. One of the AST node types.
 #[derive(Clone, Debug)]
 pub enum Statement {
     Declaration { identifier: String, mpl_type: MplType, value: Option<Expression> },
@@ -15,6 +19,7 @@ pub enum Statement {
     Empty, // TODO remove!
 }
 
+/// The statement enum. One of the AST node types.
 #[derive(Clone, Debug)]
 pub enum Expression {
     Simple(Operand),
@@ -22,6 +27,7 @@ pub enum Expression {
     Unary { operator: char, operand: Operand },
 }
 
+/// An operand of an expression. One of the AST Node types.
 #[derive(Clone, Debug)]
 pub enum Operand {
     Int(i32),
@@ -30,6 +36,8 @@ pub enum Operand {
     Expr(Box<Expression>),
 }
 
+/// MplType represents a type in mpl. This enum is used both by the AST to mark types, and the
+/// interpreter to reason about types more cleanly.
 #[derive(Clone, Debug)]
 pub enum MplType {
     Int,
@@ -38,6 +46,7 @@ pub enum MplType {
 }
 
 impl fmt::Display for MplType {
+    // Implement the display trait for printing types nicely in errormessages
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &MplType::Int => write!(f, "Integer"),

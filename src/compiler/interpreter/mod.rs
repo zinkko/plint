@@ -28,6 +28,7 @@ pub fn evaluate(ast: Ast) -> Result<(), String> {
     Ok(())
 }
 
+/// The interpreter holds the bindings of identifiers.
 struct Interpreter {
     names: HashMap<String, MplValue>,
 }
@@ -127,14 +128,6 @@ impl Interpreter {
         })
     }
 
-    fn expect_int_expr(&self, expr: Expression) -> Result<i32, String> {
-        self.evaluate_expression(expr).and_then(|value| match value {
-            MplValue::Int(i) => Ok(i),
-            MplValue::String(_) => Err("Expected int here, got string".to_string()),
-            MplValue::Bool(_) => Err("Expected int here, got bool".to_string()),
-        })
-    }
-
     fn evaluate_expression(&self, expr: Expression) -> Result<MplValue, String> {
         match expr {
             Expression::Simple(opnd) => self.evaluate_operand(opnd),
@@ -163,13 +156,24 @@ impl Interpreter {
         }
     }
 
+    /// Evaluates an expression into a rust integer. If this is not possible, for example is
+    /// the type is wrong, return an error.
+    fn expect_int_expr(&self, expr: Expression) -> Result<i32, String> {
+        self.evaluate_expression(expr).and_then(|value| match value {
+            MplValue::Int(i) => Ok(i),
+            MplValue::String(_) => Err("Expected int here, got string".to_string()),
+            MplValue::Bool(_) => Err("Expected int here, got bool".to_string()),
+        })
+    }
+
+    /// Parsing helper. Attempts to parse string into an integer MplValue.
     fn parse_int(&self, input: String) -> Result<MplValue, String> {
         match input.parse() {
             Ok(i) => Ok(MplValue::Int(i)),
             Err(e) => Err(e.description().to_string()),
         }
     }
-
+    /// Parsing helper. Attempts to parse string into an boolean MplValue.
     fn parse_bool(&self, input: String) -> Result<MplValue, String> {
         match input.parse() {
             Ok(b) => Ok(MplValue::Bool(b)),
@@ -177,6 +181,8 @@ impl Interpreter {
         }
     }
 
+    /// Get the type of a given identifier. If the identifier has not been declared,
+    /// return an error.
     fn get_type(&self, identifier: &String) -> Result<MplType, String> {
         self.names.get(identifier)
             .map(|value| value.mpl_type())
