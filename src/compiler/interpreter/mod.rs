@@ -28,7 +28,7 @@ pub fn evaluate(ast: Ast) -> Result<(), String> {
 }
 
 struct Interpreter {
-    names: HashMap<String, Vec<MplValue>>,
+    names: HashMap<String, MplValue>,
 }
 
 impl Interpreter {
@@ -55,14 +55,11 @@ impl Interpreter {
     }
 
     fn evaluate_for(&mut self, identifier: String, range: Range<i32>, statements: Vec<Statement>) -> Result<(), String> {
+        if !self.names.contains_key(&identifier) {
+            return Err(format!("Identifier {} used before assignment", identifier))
+        }
         for i in range {
-            match self.names.get_mut(&identifier) {
-                Some(stack) => {
-                    stack.pop();
-                    stack.push(MplValue::Int(i));
-                },
-                None => return Err("For loop identifier not initialized".to_string()),
-            }
+            self.names.insert(identifier.clone(), MplValue::Int(i));
             for stmt in statements.iter() {
                 self.evaluate_statement(stmt.clone())?;
             }
@@ -78,15 +75,17 @@ impl Interpreter {
         if !init.is(mpl_type) {
             return Err(format!("Type {} does not match value {}", mpl_type, init));
         }
-        self.names.insert(identifier, vec![init]);
+        self.names.insert(identifier, init);
         Ok(())
     }
 
     fn evaluate_assign(&mut self, identifier: String, val_expr: Expression) -> Result<(), String> {
         let value = self.evaluate_expression(val_expr)?;
-        match self.names.get_mut(&identifier) {
-            Some(stack) => { stack.pop(); stack.push(value); Ok(()) },
-            None => Err("Identifier {} used before declaration".to_string()),
+        if self.names.contains_key(&identifier) {
+            self.names.insert(identifier, value);
+            Ok(())
+        } else {
+            Err(format!("Identifier {}, used before declaration", identifier))
         }
     }
 
@@ -102,9 +101,11 @@ impl Interpreter {
             MplType::Bool => self.parse_bool(input)?,
         };
 
-        match self.names.get_mut(&identifier) {
-            Some(stack) => { stack.pop(); stack.push(value); Ok(()) },
-            None => Err("Identifier {} used before declaration".to_string()),
+        if self.names.contains_key(&identifier) {
+            self.names.insert(identifier, value);
+            Ok(())
+        } else {
+            Err("Identifier {} used before declaration".to_string())
         }
     }
 
@@ -151,7 +152,7 @@ impl Interpreter {
             Operand::String(s) => Ok(MplValue::String(s)),
             Operand::Identifier(id) => {
                 match self.names.get(&id) {
-                    Some(stack) => Ok(stack.last().unwrap().clone()), // last() == None should be impossible
+                    Some(value) => Ok(value.clone()),
                     None => Err(format!("Identifier {} used before assignment", id))
                 }
             },
@@ -174,13 +175,8 @@ impl Interpreter {
     }
 
     fn get_type(&self, identifier: &String) -> Result<MplType, String> {
-        match self.names.get(identifier) {
-            Some(stack) => match stack.last().unwrap() { // last() == None should be impossible
-                &MplValue::Int(_) => Ok(MplType::Int),
-                &MplValue::String(_) => Ok(MplType::String),
-                &MplValue::Bool(_) => Ok(MplType::Bool),
-            },
-            None => Err(format!("Identifier {} has not been declared", identifier)),
-        }
+        self.names.get(identifier)
+            .map(|value| value.mpl_type())
+            .ok_or(format!("Identifier {} not initialized", identifier))
     }
 }
