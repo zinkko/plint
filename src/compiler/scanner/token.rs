@@ -13,7 +13,6 @@ pub enum Token {
     Range,
     Dot,
     EndStatement,
-    InvalidToken(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

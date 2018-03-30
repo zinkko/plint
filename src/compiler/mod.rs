@@ -1,4 +1,4 @@
-mod lexer;
+mod scanner;
 mod parser;
 mod interpreter;
 
@@ -6,7 +6,7 @@ mod interpreter;
 /// Run and Mpl program defined by the source.
 /// Upon an error terminates execution and prints the error to standard output
 pub fn run(source: String) {
-    let tokens = match lexer::scan(&source) {
+    let tokens = match scanner::scan(&source) {
         Ok(tokens) => tokens,
         Err(e) => { println!("Scanning failed: {}", e); return; },
     };

@@ -1,7 +1,7 @@
 // HELPERS
 
 use super::ast::*;
-use super::super::lexer::token::*;
+use super::super::scanner::token::*;
 
 use std::vec::IntoIter;
 use std::mem;
