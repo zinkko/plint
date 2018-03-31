@@ -1,4 +1,4 @@
-extern crate compiler;
+
 
 #[test]
 fn it_works() {

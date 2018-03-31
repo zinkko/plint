@@ -8,7 +8,7 @@ pub struct Ast {
 }
 
 /// The statement enum. One of the AST node types.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
     Declaration { identifier: String, mpl_type: MplType, value: Option<Expression> },
     Assignment { identifier: String, expression: Expression },
@@ -20,7 +20,7 @@ pub enum Statement {
 }
 
 /// The statement enum. One of the AST node types.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     Simple(Operand),
     Binary { left: Operand, operator: char, right: Operand },
@@ -28,7 +28,7 @@ pub enum Expression {
 }
 
 /// An operand of an expression. One of the AST Node types.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operand {
     Int(i32),
     String(String),
@@ -38,7 +38,7 @@ pub enum Operand {
 
 /// MplType represents a type in mpl. This enum is used both by the AST to mark types, and the
 /// interpreter to reason about types more cleanly.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MplType {
     Int,
     String,

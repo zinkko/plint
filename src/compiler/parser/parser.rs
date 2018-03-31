@@ -230,3 +230,67 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         Ok(Ast { statements })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn success_expression() {
+        let mut parser = Parser::new(vec![Token::Int(1), Token::Operator('+'), Token::Int(2)]);
+        let result = parser.parse_expression();
+        assert_eq!(result, Ok(Expression::Binary {
+            operator: '+',
+            left: Operand::Int(1),
+            right: Operand::Int(2)})
+        );
+    }
+
+    #[test]
+    fn failure_expression() {
+        let mut parser = Parser::new(vec![Token::Int(1), Token::Operator('+'), Token::EndStatement]);
+        let result = parser.parse_expression();
+        assert_eq!(result, Err("Bad token EndStatement".to_string()));
+    }
+
+    #[test]
+    fn success_declaration() {
+        let name = "thing".to_string();
+        let mut parser = Parser::new(vec![
+            // Token::Reserved(Keyword::Var),
+            Token::Identifier(name.clone()),
+            Token::TypeDecl,
+            Token::Reserved(Keyword::String),
+            Token::EndStatement,
+        ]);
+        let result = parser.parse_declaration();
+        assert_eq!(result, Ok(Statement::Declaration {
+            identifier: name.clone(),
+            mpl_type: MplType::String,
+            value: None,
+        }));
+    }
+
+    #[test]
+    fn failure_declaration() {
+        let mut parser = Parser::new(vec![
+            // Token::Reserved(Keyword::Var),
+            Token::Identifier("fail".to_string()),
+            Token::Assignment,
+            Token::Int(0),
+            Token::EndStatement,
+        ]);
+        let result = parser.parse_declaration();
+        assert_eq!(result, Err("Syntax error: Expected TypeDecl, got Assignment".to_string()))
+    }
+
+    #[test]
+    fn success_for() {
+        let mut parser = Parser::new(vec![]);
+    }
+
+    #[test]
+    fn failure_for() {
+        let mut parser = Parser::new(vec![]);
+    }
+}
