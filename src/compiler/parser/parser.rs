@@ -165,28 +165,37 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
     // Expression and Operand
 
+    /// Parse an expression. Note, the parser doesn't check whether an operator that is supposed
+    /// to be unary actually is. This is checked during runtime.
+    /// # Grammar rule
+    /// expr := <unary> <operand>
+    /// expr := <operand> <expr_continuation>
     fn parse_expression(&mut self) -> Result<Expression, String> {
         match self.next() {
             Some(Token::Operator(operator)) => self.expect_next()
                 .and_then(|token| self.parse_operand(token))
                 .map(|operand| Expression::Unary { operator, operand }),
-            Some(token) => {
-                self.parse_operand(token).and_then(|left| {
-                    match self.next() {
-                        Some(Token::Operator(operator)) => {
-                            self.expect_next()
-                                .and_then(|token| self.parse_operand(token))
-                                .map(|right| Expression::Binary { left, operator, right })
-                        },
-                        Some(token) => {
-                            self.buffer = Some(token);
-                            Ok(Expression::Simple(left))
-                        },
-                        None => Err("Reached end while parsing".to_string()),
-                    }
-                })
-            },
+            Some(token) => self.parse_operand(token)
+                .and_then(|left| self.parse_expr_continuation(left)),
             None => Err("Reached end while parsing".to_string()),
+        }
+    }
+
+    /// Parse an expression "continuation". This is a separate rule in the grammar to ensure
+    /// it is LL(1).
+    /// # Grammar rule
+    /// expr_cont := <empty>
+    /// epxr_cont := <operator> <operand>
+    fn parse_expr_continuation(&mut self, left: Operand) -> Result<Expression, String> {
+        match self.next() {
+            Some(Token::Operator(operator)) => self.expect_next()
+                .and_then(|token| self.parse_operand(token))
+                .map(|right| Expression::Binary { left, operator, right }),
+            Some(token) => {
+                self.buffer = Some(token);
+                Ok(Expression::Simple(left))
+            },
+            None => Ok(Expression::Simple(left)),
         }
     }
 
