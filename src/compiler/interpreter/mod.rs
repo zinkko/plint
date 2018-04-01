@@ -119,13 +119,41 @@ impl Interpreter {
     }
 
     fn evaluate_assert(&self, assertion: Expression) -> Result<(), String> {
+        let diag = self.diagnostics(&assertion);
         self.evaluate_expression(assertion).and_then(|value| {
             match value {
                 MplValue::Bool(true) => Ok(()),
-                MplValue::Bool(false) => Err("Assertion failed".to_string()),
+                MplValue::Bool(false) => { println!("{}", diag); Ok(()) },
                 value => Err(format!("Assert expected boolean argument, got {}", value.mpl_type())),
             }
         })
+    }
+
+    fn diagnostics(&self, assertion: &Expression) -> String {
+        let expr = match assertion {
+            &Expression::Simple(ref opnd) => format!(
+                "{} ({})",
+                opnd,
+                self.evaluate_operand(opnd.clone()).unwrap(),
+            ),
+            &Expression::Unary { operator, ref operand } => format!(
+                "{} {} ({} {})",
+                operator,
+                operand,
+                operator,
+                self.evaluate_operand(operand.clone()).unwrap()
+            ),
+            &Expression::Binary { ref left, operator, ref right} => format!(
+                "{} {} {} ({} {} {})",
+                left,
+                operator,
+                right,
+                self.evaluate_operand(left.clone()).unwrap(),
+                operator,
+                self.evaluate_operand(right.clone()).unwrap(),
+            ),
+        };
+        format!("Assertion {} was false", expr)
     }
 
     fn evaluate_expression(&self, expr: Expression) -> Result<MplValue, String> {

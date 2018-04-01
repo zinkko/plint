@@ -36,6 +36,17 @@ pub enum Operand {
     Expr(Box<Expression>),
 }
 
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Operand::Int(ref i) => write!(f, "{}", i),
+            &Operand::String(ref s) => write!(f, "{}", s),
+            &Operand::Identifier(ref id) => write!(f, "{}", id),
+            &Operand::Expr(_) => write!(f, "(...)"),
+        }
+    }
+}
+
 /// MplType represents a type in mpl. This enum is used both by the AST to mark types, and the
 /// interpreter to reason about types more cleanly.
 #[derive(Clone, Debug, PartialEq)]
